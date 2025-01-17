@@ -1,3 +1,4 @@
+import type { Action } from "@elizaos/core";
 import {
     ActionExample,
     Content,
@@ -6,7 +7,6 @@ import {
     Memory,
     ModelClass,
     State,
-    type Action,
     elizaLogger,
     composeContext,
     generateObject,
@@ -24,7 +24,30 @@ import {
     isAddress,
 } from "viem";
 
+<<<<<<<< HEAD:packages/plugin-abstract/src/actions/transferAction.ts
+import {
+    Address,
+    createWalletClient,
+    erc20Abi,
+    http,
+    parseEther,
+    isAddress,
+    parseUnits,
+    createPublicClient,
+} from "viem";
+import { abstractTestnet, mainnet } from "viem/chains";
+import { normalize } from "viem/ens";
+========
+>>>>>>>> origin/develop:packages/plugin-lensNetwork/src/actions/transfer.ts
 import { z } from "zod";
+import { ValidateContext } from "../utils";
+import { ETH_ADDRESS, ERC20_OVERRIDE_INFO } from "../constants";
+import { useGetAccount, useGetWalletClient } from "../hooks";
+
+const ethereumClient = createPublicClient({
+    chain: mainnet,
+    transport: http(),
+});
 
 const TransferSchema = z.object({
     tokenAddress: z.string(),
@@ -38,6 +61,8 @@ export interface TransferContent extends Content {
     amount: string | number;
 }
 
+<<<<<<<< HEAD:packages/plugin-abstract/src/actions/transferAction.ts
+========
 export function isTransferContent(
     content: TransferContent
 ): content is TransferContent {
@@ -60,6 +85,7 @@ export function isTransferContent(
     return validAddresses;
 }
 
+>>>>>>>> origin/develop:packages/plugin-lensNetwork/src/actions/transfer.ts
 const transferTemplate = `Respond with a JSON markdown block containing only the extracted values. Use null for any values that cannot be determined.
 
 Here are several frequently used addresses. Use these for the corresponding tokens:
@@ -84,6 +110,9 @@ Given the recent messages, extract the following information about the requested
 
 Respond with a JSON markdown block containing only the extracted values.`;
 
+<<<<<<<< HEAD:packages/plugin-abstract/src/actions/transferAction.ts
+export const transferAction: Action = {
+========
 const ETH_ADDRESS = "0x000000000000000000000000000000000000800A";
 
 export async function setupProviders() {
@@ -143,6 +172,7 @@ export async function transferTokens(
 }
 
 export default {
+>>>>>>>> origin/develop:packages/plugin-lensNetwork/src/actions/transfer.ts
     name: "SEND_TOKEN",
     similes: [
         "TRANSFER_TOKEN_ON_LENS",
@@ -190,8 +220,25 @@ export default {
             })
         ).object as unknown as TransferContent;
 
+        if (!isAddress(content.recipient, { strict: false })) {
+            elizaLogger.log("Resolving ENS name...");
+            try {
+                const name = normalize(content.recipient.trim());
+                const resolvedAddress = await ethereumClient.getEnsAddress({
+                    name,
+                });
+
+                if (isAddress(resolvedAddress, { strict: false })) {
+                    elizaLogger.log(`${name} resolved to ${resolvedAddress}`);
+                    content.recipient = resolvedAddress;
+                }
+            } catch (error) {
+                elizaLogger.error("Error resolving ENS name:", error);
+            }
+        }
+
         // Validate transfer content
-        if (!isTransferContent(content)) {
+        if (!ValidateContext.transferAction(content)) {
             console.error("Invalid content for TRANSFER_TOKEN action.");
             if (callback) {
                 callback({
@@ -203,6 +250,25 @@ export default {
         }
 
         try {
+<<<<<<<< HEAD:packages/plugin-abstract/src/actions/transferAction.ts
+            const account = useGetAccount(runtime);
+            const walletClient = useGetWalletClient();
+
+            let hash;
+
+            // Check if the token is native
+            if (
+                content.tokenAddress.toLowerCase() !== ETH_ADDRESS.toLowerCase()
+            ) {
+                // Convert amount to proper token decimals
+                const tokenInfo =
+                    ERC20_OVERRIDE_INFO[content.tokenAddress.toLowerCase()];
+                const decimals = tokenInfo?.decimals ?? 18; // Default to 18 decimals if not specified
+                const tokenAmount = parseUnits(
+                    content.amount.toString(),
+                    decimals
+                );
+========
             const PRIVATE_KEY = runtime.getSetting("LENS_PRIVATE_KEY")!;
             const { lensProvider, ethProvider } = await setupProviders();
             const wallet = await setupWallet(
@@ -213,6 +279,7 @@ export default {
             const amount = content.amount.toString();
 
             let hash;
+>>>>>>>> origin/develop:packages/plugin-lensNetwork/src/actions/transfer.ts
 
             hash = await transferTokens(
                 wallet,
@@ -250,7 +317,53 @@ export default {
             {
                 user: "{{user1}}",
                 content: {
+<<<<<<<< HEAD:packages/plugin-abstract/src/actions/transferAction.ts
+                    text: "Send 0.01 ETH to 0x114B242D931B47D5cDcEe7AF065856f70ee278C4",
+                },
+            },
+            {
+                user: "{{agent}}",
+                content: {
+                    text: "Sure, I'll send 0.01 ETH to that address now.",
+                    action: "SEND_TOKEN",
+                },
+            },
+            {
+                user: "{{agent}}",
+                content: {
+                    text: "Successfully sent 0.01 ETH to 0x114B242D931B47D5cDcEe7AF065856f70ee278C4\nTransaction: 0xdde850f9257365fffffc11324726ebdcf5b90b01c6eec9b3e7ab3e81fde6f14b",
+                },
+            },
+        ],
+        [
+            {
+                user: "{{user1}}",
+                content: {
+                    text: "Send 0.01 ETH to alim.getclave.eth",
+                },
+            },
+            {
+                user: "{{agent}}",
+                content: {
+                    text: "Sure, I'll send 0.01 ETH to alim.getclave.eth now.",
+                    action: "SEND_TOKEN",
+                },
+            },
+            {
+                user: "{{agent}}",
+                content: {
+                    text: "Successfully sent 0.01 ETH to alim.getclave.eth\nTransaction: 0xdde850f9257365fffffc11324726ebdcf5b90b01c6eec9b3e7ab3e81fde6f14b",
+                },
+            },
+        ],
+        [
+            {
+                user: "{{user1}}",
+                content: {
+                    text: "Send 100 USDC to 0xCCa8009f5e09F8C5dB63cb0031052F9CB635Af62",
+========
                     text: "Send 1 Grass to 0xCCa8009f5e09F8C5dB63cb0031052F9CB635Af62",
+>>>>>>>> origin/develop:packages/plugin-lensNetwork/src/actions/transfer.ts
                 },
             },
             {
@@ -289,4 +402,4 @@ export default {
             },
         ],
     ] as ActionExample[][],
-} as Action;
+};
