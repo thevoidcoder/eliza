@@ -1177,6 +1177,135 @@ export class DirectClient {
                 `Endpoint Time took ${(TotalendTime - TotalstartTime).toFixed(2)} ms`
             );
         });
+        this.app.post("/:agentId/chat", async (req, res) => {
+            const startTime = performance.now();
+            const agentId = req.params.agentId;
+            const roomId = stringToUuid(
+                req.body.roomId ?? "default-room-" + agentId
+            );
+            const userId = stringToUuid(req.body.userId ?? "user");
+            const text = req.body.text;
+
+            if (!text) {
+                res.status(400).send("No text provided");
+                return;
+            }
+
+            let runtime = this.agents.get(agentId);
+
+            // if runtime is null, look for runtime with the same name
+            if (!runtime) {
+                runtime = Array.from(this.agents.values()).find(
+                    (a) =>
+                        a.character.name.toLowerCase() === agentId.toLowerCase()
+                );
+            }
+
+            if (!runtime) {
+                res.status(404).send("Agent not found");
+                return;
+            }
+
+            try {
+                await runtime.ensureConnection(
+                    userId,
+                    roomId,
+                    req.body.userName,
+                    req.body.name,
+                    "direct"
+                );
+
+                const messageId = stringToUuid(Date.now().toString());
+
+                const content: Content = {
+                    text,
+                    attachments: [],
+                    source: "direct",
+                    inReplyTo: undefined,
+                };
+
+                const userMessage = {
+                    content,
+                    userId,
+                    roomId,
+                    agentId: runtime.agentId,
+                };
+
+                const memory: Memory = {
+                    id: messageId,
+                    agentId: runtime.agentId,
+                    userId,
+                    roomId,
+                    content,
+                    createdAt: Date.now(),
+                };
+
+                await runtime.messageManager.createMemory(memory);
+
+                const state = await runtime.composeState(userMessage, {
+                    agentName: runtime.character.name,
+                });
+
+                const context = composeContext({
+                    state,
+                    template: messageHandlerTemplate,
+                });
+
+                const generateStartTime = performance.now();
+                const response = await generateMessageResponse({
+                    runtime: runtime,
+                    context,
+                    modelClass: ModelClass.LARGE,
+                });
+                const generateEndTime = performance.now();
+                console.log(
+                    `Generate Response Time took ${(generateEndTime - generateStartTime).toFixed(2)} ms`
+                );
+
+                // save response to memory
+                const responseMessage = {
+                    ...userMessage,
+                    userId: runtime.agentId,
+                    content: response,
+                };
+
+                await runtime.messageManager.createMemory(responseMessage);
+
+                if (!response) {
+                    res.status(500).send("No response from generateMessageResponse");
+                    return;
+                }
+
+                await runtime.evaluate(memory, state);
+
+                const _result = await runtime.processActions(
+                    memory,
+                    [responseMessage],
+                    state,
+                    async () => {
+                        return [memory];
+                    }
+                );
+
+                // Send just the text response
+                res.json({
+                    text: response.text,
+                    messageId: messageId,
+                    timestamp: Date.now(),
+                });
+
+            } catch (error) {
+                console.error("Error processing message:", error);
+                res.status(500).json({
+                    error: "Error processing message",
+                    details: error.message,
+                });
+            }
+            const endTime = performance.now();
+            console.log(
+                `Chat Endpoint Time took ${(endTime - startTime).toFixed(2)} ms`
+            );
+        });
     }
 
     // agent/src/index.ts:startAgent calls this
