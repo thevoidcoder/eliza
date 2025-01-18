@@ -5,11 +5,20 @@
         "moduleResolution": "node",
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
+        "forceConsistentCasingInFileNames": true,
+        "paths": {
+            "@/*": ["./src/*"],
+            "@live2d/*": ["./src/live2d/*"]
+        }
     },
     "files": [],
     "references": [
         { "path": "packages/core" },
         { "path": "packages/client-slack" }
+    ],
+    "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        "src/live2d/**/*.d.ts"
     ]
 } 
